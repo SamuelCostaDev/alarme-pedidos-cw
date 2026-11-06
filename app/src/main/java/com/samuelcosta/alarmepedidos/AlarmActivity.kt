@@ -33,7 +33,7 @@ class AlarmActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#DC2626"))
+            setBackgroundColor(Color.parseColor("#A543FA"))
             setPadding((28 * dp).toInt(), (28 * dp).toInt(), (28 * dp).toInt(), (28 * dp).toInt())
         }
         root.addView(TextView(this).apply {
@@ -58,7 +58,7 @@ class AlarmActivity : Activity() {
         root.addView(Button(this).apply {
             text = "Vi o pedido — parar alarme"
             textSize = 20f
-            setTextColor(Color.parseColor("#DC2626"))
+            setTextColor(Color.parseColor("#A543FA"))
             setBackgroundColor(Color.WHITE)
             setPadding(0, (22 * dp).toInt(), 0, (22 * dp).toInt())
             setOnClickListener {
