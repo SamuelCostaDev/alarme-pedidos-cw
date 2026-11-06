@@ -35,7 +35,7 @@ class DevicePairingTest extends TestCase
 
         $this->get('/painel')->assertOk()
             ->assertSee($code->code)
-            ->assertSee('alarmepedidos://pair?code='.$code->code, false);
+            ->assertSee('alarmepedidos://pair?code='.$code->code.'\u0026server=', false);
     }
 
     public function test_full_pairing_flow(): void

@@ -26,7 +26,7 @@
             </div>
         </div>
         <script>
-            new QRCode(document.getElementById('qr'), { text: @json($pairingLink), width: 160, height: 160 });
+            new QRCode(document.getElementById('qr'), { text: {!! json_encode($pairingLink, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) !!}, width: 160, height: 160 });
         </script>
     @else
         <ol>
