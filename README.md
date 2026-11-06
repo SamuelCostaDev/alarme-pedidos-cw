@@ -57,6 +57,26 @@ php artisan queue:work     # envia os pushes — precisa ficar rodando (Supervis
 php artisan test
 ```
 
+## Testar local (sem a Cardápio Web)
+
+```bash
+cd backend
+composer install && cp .env.example .env && php artisan key:generate
+# no .env: APP_ENV=local, CARDAPIOWEB_WEBHOOK_TOKEN=qualquer-coisa, FCM_PROJECT_ID e FCM_CREDENTIALS_BASE64
+touch database/database.sqlite && php artisan migrate
+
+php artisan serve                      # terminal 1
+cloudflared tunnel --url http://localhost:8000   # terminal 2 → copie a URL https://....trycloudflare.com
+# coloque essa URL em APP_URL no .env e reinicie o serve
+php artisan queue:work                 # terminal 3
+
+php artisan alarme:loja-teste          # cria a loja falsa e mostra o link do painel
+# abra o link, gere o código, pareie o celular (pelo QR o app já pega o endereço do servidor)
+php artisan alarme:pedido-teste        # simula um pedido novo → o celular toca
+```
+
+O túnel é necessário porque o Android bloqueia `http://` sem TLS. Os comandos `alarme:*` e a rota `/dev/entrar` só existem com `APP_ENV=local`.
+
 ## App Android
 
 O APK é gerado pelo GitHub Actions a cada push em `android/` e publicado na release **latest**.

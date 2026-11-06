@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DevLoginController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\SsoController;
@@ -21,3 +22,10 @@ Route::middleware(EnsurePanelSession::class)->prefix('painel')->group(function (
     Route::delete('/celulares/{deviceId}', [PanelController::class, 'deleteDevice'])->name('panel.device.delete');
     Route::post('/sair', [PanelController::class, 'logout'])->name('panel.logout');
 });
+
+// Só pra teste local (gerado por: php artisan alarme:loja-teste)
+if (app()->environment('local')) {
+    Route::get('/dev/entrar/{installation}', DevLoginController::class)
+        ->middleware('signed')
+        ->name('dev.login');
+}
