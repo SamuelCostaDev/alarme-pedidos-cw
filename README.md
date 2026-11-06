@@ -1,24 +1,76 @@
-# Alarme de Pedidos – Cardápio Web
+# Alarme de Pedidos – app da CW App Store
 
-App Android que toca um alarme (canal de despertador, toca até no silencioso) quando chega pedido novo numa loja do Cardápio Web, **mesmo com a tela bloqueada**.
+Toca um alarme no celular da loja quando chega pedido na Cardápio Web — mesmo com a tela bloqueada e no silencioso — até alguém tocar em **"Vi o pedido"**.
 
-## Como funciona
+```
+Pedido criado na CW
+   │  webhook ORDER_CREATED
+   ▼
+backend/ (Laravel) ── fila ──► Firebase Cloud Messaging ──► android/ (app) ──► alarme
+   ▲
+   └── instalação pela CW App Store (OAuth + PKCE), botão Acessar (SSO), painel de pareamento
+```
 
-- Um serviço em primeiro plano consulta `GET /api/partner/v1/orders` a cada 30 s (intervalo recomendado na [documentação](https://docs.cardapioweb.com/fluxo-integracao.md)), usando `updated_since` com 1 min de margem.
-- Pedido com `id` ainda não visto e status em aberto → toca o alarme, vibra e abre uma tela vermelha por cima da tela de bloqueio até alguém tocar em **"Vi o pedido"**.
-- Ao ligar, pedidos que já estão em `waiting_confirmation` também disparam o alarme.
-- Mais de 10 min sem conseguir falar com a API → notificação de aviso.
-- Religa sozinho depois que o celular reinicia.
+## Pastas
 
-## Autenticação
+| Pasta | O que é |
+|---|---|
+| `backend/` | Laravel 12. Instalação OAuth, SSO, painel da loja, webhook de pedidos, envio FCM. |
+| `android/` | App Kotlin. Pareia com a loja por código/QR e toca o alarme ao receber o push. |
 
-Usa o token legado `X-API-KEY` da loja (Portal → Configurações → Integrações → API). A documentação avisa que esse modelo será descontinuado no futuro; a chamada está isolada em `CardapioApi.kt` para trocar por OAuth (PKCE + refresh token) depois.
+## Backend
 
-## Instalar
+Rotas principais:
 
-1. Cada push na `main` gera o APK pelo GitHub Actions e publica na release **latest**.
-2. No celular, abra a release e baixe `AlarmePedidos.apk`. Permita "instalar apps desconhecidos" para o navegador.
-3. Abra o app, cole o token, toque em **Ligar monitoramento** e libere bateria/tela cheia nos botões que aparecerem.
-4. Toque em **Testar alarme**.
+| Rota | Uso |
+|---|---|
+| `GET /install` | **URL de instalação** cadastrada na CW. Redireciona pro portal com PKCE. |
+| `GET /oauth/callback` | **Redirect URI** cadastrada na CW. Troca o `code`, chama `identity/context`, cria a instalação. |
+| `GET /sso` | **URL de login** (botão Acessar). Valida o ticket e abre o painel. |
+| `GET /painel` | Painel: gerar código/QR de pareamento, ver celulares, tocar alarme de teste. |
+| `POST /api/webhooks/cardapioweb` | **URL do webhook** cadastrada na CW. Valida `X-Webhook-Token`, descarta duplicados por `event_id`, enfileira o alarme. |
+| `POST /api/devices/pair` | App troca o código de 6 dígitos por um token do aparelho. |
+| `/api/devices/me` (+ `/fcm-token`, `/test`) | Status, atualização do token FCM, teste ponta a ponta, desparear. |
 
-O APK é assinado com a chave guardada nos secrets `KEYSTORE_B64` e `KEYSTORE_PASSWORD` do repositório, então versões novas instalam por cima da anterior. Sem esses secrets, o build usa a chave de debug.
+Configuração (`.env`):
+
+```
+APP_URL=https://seu-dominio
+CARDAPIOWEB_ENV=sandbox            # ou production
+CARDAPIOWEB_CLIENT_ID=             # enviado pela CW após o cadastro
+CARDAPIOWEB_REDIRECT_URI="${APP_URL}/oauth/callback"
+CARDAPIOWEB_WEBHOOK_TOKEN=         # enviado pela CW após o cadastro
+FCM_PROJECT_ID=
+FCM_CREDENTIALS_BASE64=            # base64 -w0 service-account.json
+QUEUE_CONNECTION=database          # ou redis
+```
+
+Rodar:
+
+```bash
+cd backend
+composer install
+cp .env.example .env && php artisan key:generate
+php artisan migrate
+php artisan serve          # web
+php artisan queue:work     # envia os pushes — precisa ficar rodando (Supervisor / Horizon)
+php artisan test
+```
+
+## App Android
+
+O APK é gerado pelo GitHub Actions a cada push em `android/` e publicado na release **latest**.
+
+Configuração em **Settings → Secrets and variables → Actions**:
+
+| Tipo | Nome | Valor |
+|---|---|---|
+| Secret | `KEYSTORE_B64`, `KEYSTORE_PASSWORD` | Chave de assinatura (versões novas instalam por cima) |
+| Variable | `FIREBASE_PROJECT_ID`, `FIREBASE_APP_ID`, `FIREBASE_API_KEY`, `FIREBASE_SENDER_ID` | Do app Android no console do Firebase (pacote `com.samuelcosta.alarmepedidos`) |
+| Variable | `BACKEND_URL` | Opcional. Sem ele, o app pega o endereço do servidor pelo QR code. |
+
+## Cadastro na CW App Store
+
+Enviar ao suporte da CW: nome, ícone, descrição e as URLs `…/install` (instalação), `…/oauth/callback` (redirect), `…/sso` (login) e `…/api/webhooks/cardapioweb` (webhook), com as permissões `auth` e `orders`. Começar como **app privado** no **sandbox**.
+
+Documentação: https://docs.cardapioweb.com

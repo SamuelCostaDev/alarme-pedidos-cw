@@ -3,6 +3,7 @@ name: Gerar APK
 on:
   push:
     branches: [main]
+    paths: ["android/**", ".github/workflows/build-apk.yml"]
   workflow_dispatch:
 
 permissions:
@@ -11,6 +12,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
     steps:
       - uses: actions/checkout@v4
 
@@ -31,16 +35,29 @@ jobs:
             echo "$KEYSTORE_B64" | base64 -d > app/signing.keystore
             echo "Usando chave fixa do secret."
           else
-            echo "::warning::Secret KEYSTORE_B64 não configurado — APK assinado com chave de debug (atualizar vai exigir desinstalar)."
+            echo "::warning::Secret KEYSTORE_B64 não configurado — APK assinado com chave de debug."
           fi
+
+      - name: Conferir configuração
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          [ -n "$FIREBASE_PROJECT_ID" ] || echo "::warning::Variáveis do Firebase não configuradas — o APK não vai receber alarmes."
+          [ -n "$BACKEND_URL" ] || echo "::notice::BACKEND_URL vazio — o app pega o endereço do servidor pelo QR code."
 
       - name: Compilar APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
+          FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
+          FIREBASE_SENDER_ID: ${{ vars.FIREBASE_SENDER_ID }}
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
       - name: Renomear APK
-        run: cp app/build/outputs/apk/release/app-release.apk AlarmePedidos.apk
+        run: cp app/build/outputs/apk/release/app-release.apk ../AlarmePedidos.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -48,6 +65,7 @@ jobs:
           path: AlarmePedidos.apk
 
       - name: Publicar na release "latest"
+        working-directory: .
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
