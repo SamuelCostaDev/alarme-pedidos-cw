@@ -37,4 +37,32 @@ class LocalDevToolsTest extends TestCase
             && $r['event_type'] === 'ORDER_CREATED'
             && $r['merchant_id'] === 3268);
     }
+
+    public function test_diagnostics_reports_missing_firebase(): void
+    {
+        config(['fcm.project_id' => null, 'cardapioweb.webhook_token' => 'x', 'app.url' => 'https://a.test']);
+
+        $this->artisan('alarme:diagnostico')
+            ->expectsOutputToContain('FCM_PROJECT_ID vazio')
+            ->assertExitCode(1);
+    }
+
+    public function test_diagnostics_checks_google_login(): void
+    {
+        $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        openssl_pkey_export($key, $pem);
+        config([
+            'app.url' => 'https://a.test',
+            'cardapioweb.webhook_token' => 'x',
+            'fcm.project_id' => 'p1',
+            'fcm.credentials_base64' => base64_encode(json_encode([
+                'project_id' => 'p1', 'client_email' => 'sa@p1.iam.gserviceaccount.com', 'private_key' => $pem,
+            ])),
+        ]);
+        Http::fake(['oauth2.googleapis.com/*' => Http::response(['access_token' => 'g', 'expires_in' => 3600])]);
+
+        $this->artisan('alarme:diagnostico')
+            ->expectsOutputToContain('Login no Google com a conta de serviço funcionou')
+            ->assertExitCode(0);
+    }
 }
