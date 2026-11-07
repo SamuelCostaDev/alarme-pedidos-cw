@@ -75,6 +75,10 @@ class CardapioWebClient
     {
         $response = $this->http()->asForm()->post('/api/partner/oauth/token', $form);
 
+        if ($response->status() === 401 && ($form['grant_type'] ?? null) === 'refresh_token') {
+            throw new InstallationRevokedException('Refresh token recusado (401).');
+        }
+
         if ($response->failed()) {
             $error = $response->json('error') ?? 'http_'.$response->status();
             $desc = $response->json('error_description') ?? '';
@@ -109,6 +113,12 @@ class CardapioWebClient
             return $response->json();
         }
 
+        // 401 com code 4010 = token da instalação inválido (desinstalado/revogado).
+        // 401 com invalid_ticket é só ticket ruim — a instalação continua ativa.
+        if ($response->status() === 401 && (int) $response->json('code') === 4010) {
+            throw new InstallationRevokedException('Token da instalação recusado (4010).');
+        }
+
         return null;
     }
 
@@ -119,11 +129,27 @@ class CardapioWebClient
             || $installation->token_expires_at->subMinutes(5)->isPast();
 
         if ($expiresSoon && $installation->refresh_token) {
-            $tokens = $this->refresh($installation->refresh_token);
+            try {
+                $tokens = $this->refresh($installation->refresh_token);
+            } catch (InstallationRevokedException $e) {
+                $this->markRevoked($installation);
+                throw $e;
+            }
             $this->storeTokens($installation, $tokens);
         }
 
         return $installation->access_token;
+    }
+
+    /**
+     * Loja desinstalou: para de tocar alarme pra ela e remove os celulares.
+     * Se reinstalar, o callback reativa com tokens novos.
+     */
+    public function markRevoked(Installation $installation): void
+    {
+        $installation->forceFill(['status' => 'revoked'])->save();
+        $installation->devices()->delete();
+        $installation->pairingCodes()->delete();
     }
 
     public function storeTokens(Installation $installation, array $tokens): void

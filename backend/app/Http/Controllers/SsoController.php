@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Installation;
 use App\Services\CardapioWebClient;
+use App\Services\InstallationRevokedException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -29,6 +30,10 @@ class SsoController extends Controller
 
         try {
             $result = $cw->validateSsoTicket($installation, $ticket);
+        } catch (InstallationRevokedException) {
+            $cw->markRevoked($installation);
+
+            return response()->view('need-login', [], 401);
         } catch (Throwable $e) {
             Log::warning('Falha ao validar ticket SSO', ['error' => $e->getMessage()]);
             $result = null;
