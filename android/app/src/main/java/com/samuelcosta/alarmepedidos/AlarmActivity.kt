@@ -30,10 +30,16 @@ class AlarmActivity : Activity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         val dp = resources.displayMetrics.density
+        val alarmType = intent?.getStringExtra("type") ?: Prefs.alarmType(this)
+        val accent = when (alarmType) {
+            "pending" -> Color.parseColor("#D97706")
+            "scheduled" -> Color.parseColor("#2563EB")
+            else -> Color.parseColor("#A543FA")
+        }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#A543FA"))
+            setBackgroundColor(accent)
             setPadding((28 * dp).toInt(), (28 * dp).toInt(), (28 * dp).toInt(), (28 * dp).toInt())
         }
         root.addView(TextView(this).apply {
@@ -42,7 +48,7 @@ class AlarmActivity : Activity() {
             gravity = Gravity.CENTER
         })
         root.addView(TextView(this).apply {
-            text = Prefs.alarmTitle(this@AlarmActivity).uppercase()
+            text = Prefs.alarmTitle(this@AlarmActivity)
             textSize = 34f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(Color.WHITE)
@@ -58,7 +64,7 @@ class AlarmActivity : Activity() {
         root.addView(Button(this).apply {
             text = "Vi o pedido — parar alarme"
             textSize = 20f
-            setTextColor(Color.parseColor("#A543FA"))
+            setTextColor(accent)
             setBackgroundColor(Color.WHITE)
             setPadding(0, (22 * dp).toInt(), 0, (22 * dp).toInt())
             setOnClickListener {

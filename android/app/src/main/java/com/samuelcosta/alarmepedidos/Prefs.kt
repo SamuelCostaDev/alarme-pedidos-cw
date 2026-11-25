@@ -36,8 +36,9 @@ object Prefs {
 
     fun alarmTitle(ctx: Context): String = p(ctx).getString("alarm_title", "Pedido novo!") ?: ""
     fun alarmText(ctx: Context): String = p(ctx).getString("alarm_text", "") ?: ""
-    fun setAlarm(ctx: Context, title: String, text: String) =
-        p(ctx).edit().putString("alarm_title", title).putString("alarm_text", text).apply()
+    fun alarmType(ctx: Context): String = p(ctx).getString("alarm_type", "order") ?: "order"
+    fun setAlarm(ctx: Context, title: String, text: String, type: String) =
+        p(ctx).edit().putString("alarm_title", title).putString("alarm_text", text).putString("alarm_type", type).apply()
 
     fun lastAlarmAt(ctx: Context): Long = p(ctx).getLong("last_alarm_at", 0L)
     fun setLastAlarmAt(ctx: Context, v: Long) = p(ctx).edit().putLong("last_alarm_at", v).apply()

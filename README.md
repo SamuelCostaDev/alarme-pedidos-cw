@@ -75,7 +75,13 @@ php artisan alarme:loja-teste          # cria a loja falsa e mostra o link do pa
 php artisan alarme:pedido-teste        # simula um pedido novo → o celular toca
 ```
 
-O túnel é necessário porque o Android bloqueia `http://` sem TLS. Os comandos `alarme:*` e a rota `/dev/entrar` só existem com `APP_ENV=local`.
+O túnel é necessário porque o Android bloqueia `http://` sem TLS. Os comandos `alarme:*` e a rota `/dev/entrar` só existem com `APP_ENV=local`. O comando `alarme:loja-teste` usa por padrão `Samuel Testes` (`merchant_id=12743`); isso serve apenas para teste local, e as instalações reais continuam identificadas pelo OAuth.
+
+Pedidos em `waiting_confirmation` recebem o alerta inicial e até cinco lembretes, com intervalo de três minutos. Pedidos em `scheduled_confirmed` recebem um alerta azul com o título “Pedido AGENDADO”. Os dois status e o evento `ORDER_STATUS_UPDATED` precisam ser confirmados no sandbox antes do piloto. Em produção, mantenha `queue:work` rodando e configure o cron do Laravel a cada minuto:
+
+```cron
+* * * * * cd /caminho/backend && php artisan schedule:run
+```
 
 ## App Android
 

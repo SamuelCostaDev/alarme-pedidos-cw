@@ -13,13 +13,13 @@ class AlarmMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         val type = data["type"] ?: return
-        if (type != "order" && type != "test") return
+        if (type !in setOf("order", "test", "pending", "scheduled")) return
         if (!Prefs.isPaired(this)) return
 
         val title = data["title"]?.ifBlank { null } ?: "Pedido novo!"
         val body = data["body"]?.ifBlank { null } ?: "Chegou pedido na loja."
         try {
-            AlarmService.ring(this, title, body)
+            AlarmService.ring(this, title, body, type)
         } catch (e: Exception) {
             Log.e(TAG, "Não consegui iniciar o alarme", e)
         }

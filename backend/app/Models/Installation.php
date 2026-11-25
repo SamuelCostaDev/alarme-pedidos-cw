@@ -34,6 +34,11 @@ class Installation extends Model
         return $this->hasMany(PairingCode::class);
     }
 
+    public function openOrders(): HasMany
+    {
+        return $this->hasMany(OpenOrder::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

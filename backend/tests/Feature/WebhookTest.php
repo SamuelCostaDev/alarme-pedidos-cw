@@ -61,7 +61,44 @@ class WebhookTest extends TestCase
         Queue::assertPushed(SendOrderAlarm::class, fn ($job) => $job->installationId === $inst->id
             && $job->kind === 'order'
             && $job->orderId === '237456');
+        $this->assertDatabaseHas('open_orders', [
+            'installation_id' => $inst->id, 'order_id' => '237456', 'kind' => 'pending',
+            'status' => 'waiting_confirmation', 'reminders_sent' => 0,
+        ]);
         $this->assertSame('alarm_dispatched', WebhookEvent::first()->result);
+    }
+
+    public function test_scheduled_order_is_recorded_and_sends_scheduled_alarm(): void
+    {
+        $inst = $this->installation();
+
+        $this->postJson('/api/webhooks/cardapioweb', $this->payload([
+            'event_id' => 'scheduled-1', 'order_id' => 888, 'order_status' => 'scheduled_confirmed',
+        ]), ['X-Webhook-Token' => 'segredo-webhook'])->assertOk();
+
+        Queue::assertPushed(SendOrderAlarm::class, fn ($job) => $job->installationId === $inst->id
+            && $job->kind === 'scheduled' && $job->orderId === '888');
+        $this->assertDatabaseHas('open_orders', [
+            'installation_id' => $inst->id, 'order_id' => '888', 'kind' => 'scheduled',
+            'status' => 'scheduled_confirmed',
+        ]);
+    }
+
+    public function test_status_update_resolves_a_tracked_order(): void
+    {
+        $inst = $this->installation();
+        $this->postJson('/api/webhooks/cardapioweb', $this->payload([
+            'event_id' => 'pending-1', 'order_id' => 889,
+        ]), ['X-Webhook-Token' => 'segredo-webhook'])->assertOk();
+
+        $this->postJson('/api/webhooks/cardapioweb', $this->payload([
+            'event_id' => 'status-1', 'event_type' => 'ORDER_STATUS_UPDATED',
+            'order_id' => 889, 'order_status' => 'confirmed',
+        ]), ['X-Webhook-Token' => 'segredo-webhook'])->assertOk();
+
+        $this->assertNotNull(\App\Models\OpenOrder::where('installation_id', $inst->id)
+            ->where('order_id', '889')->firstOrFail()->resolved_at);
+        Queue::assertPushed(SendOrderAlarm::class, 1);
     }
 
     public function test_retried_event_is_not_dispatched_twice(): void

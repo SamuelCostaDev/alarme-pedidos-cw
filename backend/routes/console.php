@@ -2,6 +2,8 @@
 
 use App\Models\Installation;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
+use App\Services\PendingOrderReminderDispatcher;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -10,7 +12,7 @@ use Illuminate\Support\Str;
 | Comandos pra testar sem a Cardápio Web. Só funcionam com APP_ENV=local.
 */
 
-Artisan::command('alarme:loja-teste {--id=3268} {--nome=Loja de Teste}', function () {
+Artisan::command('alarme:loja-teste {--id=12743} {--nome=}', function () {
     if (! app()->environment('local')) {
         $this->error('Só disponível com APP_ENV=local.');
 
@@ -20,7 +22,7 @@ Artisan::command('alarme:loja-teste {--id=3268} {--nome=Loja de Teste}', functio
     $inst = Installation::updateOrCreate(
         ['company_external_id' => (string) $this->option('id')],
         [
-            'company_name' => $this->option('nome'),
+            'company_name' => $this->option('nome') ?: 'Samuel Testes',
             'owner_name' => 'Teste local',
             'access_token' => 'token-falso-local',
             'token_expires_at' => now()->addYears(10),
@@ -35,7 +37,7 @@ Artisan::command('alarme:loja-teste {--id=3268} {--nome=Loja de Teste}', functio
     $this->line($link);
 })->purpose('Cria uma loja falsa e mostra o link do painel (só local)');
 
-Artisan::command('alarme:pedido-teste {merchant_id=3268} {--status=waiting_confirmation}', function () {
+Artisan::command('alarme:pedido-teste {merchant_id=12743} {--status=waiting_confirmation}', function () {
     if (! app()->environment('local')) {
         $this->error('Só disponível com APP_ENV=local.');
 
@@ -145,3 +147,11 @@ Artisan::command('alarme:diagnostico', function () {
 
     return $problems ? 1 : 0;
 })->purpose('Confere configuração, Firebase, fila, celulares e últimos webhooks');
+
+
+Artisan::command('alarme:lembretes', function (PendingOrderReminderDispatcher $dispatcher) {
+    $count = $dispatcher->run();
+    $this->info("Lembretes processados: {$count}");
+})->purpose('Reenvia alertas de pedidos pendentes ainda sem confirmação');
+
+Schedule::command('alarme:lembretes')->everyMinute()->withoutOverlapping();

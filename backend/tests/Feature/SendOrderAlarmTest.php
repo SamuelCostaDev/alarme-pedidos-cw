@@ -69,6 +69,25 @@ class SendOrderAlarmTest extends TestCase
         $this->assertNotNull(Device::first()->last_push_at);
     }
 
+    public function test_pending_and_scheduled_pushes_have_distinct_types_and_titles(): void
+    {
+        $this->device('tok-1');
+        Http::fake([
+            'oauth2.googleapis.com/*' => Http::response(['access_token' => 'g', 'expires_in' => 3600]),
+            'fcm.googleapis.com/*' => Http::response(['name' => 'sent']),
+        ]);
+
+        (new SendOrderAlarm($this->inst->id, 'pending', '55', 'waiting_confirmation'))->handle(app(FcmSender::class));
+        (new SendOrderAlarm($this->inst->id, 'scheduled', '56', 'scheduled_confirmed'))->handle(app(FcmSender::class));
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'fcm.googleapis.com')
+            && $r['message']['data']['type'] === 'pending'
+            && $r['message']['data']['title'] === 'Pedido PENDENTE');
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'fcm.googleapis.com')
+            && $r['message']['data']['type'] === 'scheduled'
+            && $r['message']['data']['title'] === 'Pedido AGENDADO');
+    }
+
     public function test_jwt_is_signed_for_google(): void
     {
         $this->device('tok-1');

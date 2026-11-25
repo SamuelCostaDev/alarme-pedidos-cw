@@ -24,16 +24,18 @@ class AlarmService : Service() {
         private const val ACTION_STOP = "com.samuelcosta.alarmepedidos.STOP"
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_BODY = "body"
+        private const val EXTRA_TYPE = "type"
 
         const val CH_ALARM = "alarme_pedido"
         const val NOTIF_ALARM = 2
         private const val MAX_RING_MS = 15L * 60 * 1000
 
-        fun ring(ctx: Context, title: String, body: String) {
+        fun ring(ctx: Context, title: String, body: String, type: String = "order") {
             val i = Intent(ctx, AlarmService::class.java)
                 .setAction(ACTION_RING)
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_BODY, body)
+                .putExtra(EXTRA_TYPE, type)
             ctx.startForegroundService(i)
         }
 
@@ -73,7 +75,8 @@ class AlarmService : Service() {
 
         val title = intent?.getStringExtra(EXTRA_TITLE) ?: "Pedido novo!"
         val body = intent?.getStringExtra(EXTRA_BODY) ?: ""
-        Prefs.setAlarm(this, title, body)
+        val type = intent?.getStringExtra(EXTRA_TYPE) ?: "order"
+        Prefs.setAlarm(this, title, body, type)
         Prefs.setLastAlarmAt(this, System.currentTimeMillis())
 
         val n = buildNotification(title, body)
@@ -105,7 +108,9 @@ class AlarmService : Service() {
     private fun buildNotification(title: String, body: String): Notification {
         val fullScreen = PendingIntent.getActivity(
             this, 10,
-            Intent(this, AlarmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(this, AlarmActivity::class.java)
+                .putExtra(EXTRA_TYPE, Prefs.alarmType(this))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val stopIntent = PendingIntent.getService(
